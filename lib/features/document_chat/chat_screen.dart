@@ -4,7 +4,8 @@ import 'package:flutter_offline_ai_doc_chat/app/di/service_locator.dart';
 import 'package:flutter_offline_ai_doc_chat/core/database/local_database.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/models/document_category.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/models/message.dart';
-import 'package:flutter_offline_ai_doc_chat/shared/services/retrieval_service.dart';
+import 'package:flutter_offline_ai_doc_chat/core/storage/app_preferences.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/answer_service.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/export_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -18,7 +19,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _db = sl<LocalDatabase>();
-  final _retrievalService = sl<RetrievalService>();
+  final _answerService = sl<AnswerService>();
+  final _prefs = sl<AppPreferences>();
   final _exportService = sl<ExportService>();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
@@ -66,17 +68,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final doc = _db.getDocument(widget.documentId);
     if (doc != null) {
-      final chunks = _retrievalService.chunkDocument(doc);
-      final relevantChunks = _retrievalService.searchRelevantChunks(text, chunks);
-      final answer = await _retrievalService.generateAnswer(text, relevantChunks);
+      final result = await _answerService.answerQuestion(
+        document: doc,
+        query: text,
+      );
 
       final aiMsg = Message(
         id: const Uuid().v4(),
         documentId: widget.documentId,
-        content: answer,
+        content: result.content,
         role: MessageRole.ai,
         timestamp: DateTime.now(),
-        referenceChunkIds: relevantChunks.map((c) => c.id).toList(),
+        referenceChunkIds: result.referenceChunkIds,
       );
 
       setState(() {
@@ -183,8 +186,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis),
             if (doc != null)
-              Text(doc.category.label,
-                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+              Text(
+                '${doc.category.label} · ${_prefs.answerMode.label}',
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+              ),
           ],
         ),
         actions: [

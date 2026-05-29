@@ -6,6 +6,9 @@ import 'package:flutter_offline_ai_doc_chat/shared/services/retrieval_service.da
 import 'package:flutter_offline_ai_doc_chat/shared/services/export_service.dart';
 import 'package:flutter_offline_ai_doc_chat/core/storage/app_preferences.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/pdf_extraction_service.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/local_llm_service.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/cloud_llm_service.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/answer_service.dart';
 
 final sl = GetIt.instance;
 
@@ -21,5 +24,19 @@ Future<void> setupServiceLocator() async {
     () => PdfExtractionServiceImpl(sl<OcrService>()),
   );
   sl.registerLazySingleton<RetrievalService>(() => RetrievalServiceImpl());
+  sl.registerLazySingleton<LocalLlmService>(
+    () => LocalLlmServiceImpl(sl<AppPreferences>()),
+  );
+  sl.registerLazySingleton<CloudLlmService>(
+    () => CloudLlmServiceImpl(sl<AppPreferences>()),
+  );
+  sl.registerLazySingleton<AnswerService>(
+    () => AnswerServiceImpl(
+      sl<RetrievalService>(),
+      sl<LocalLlmService>(),
+      sl<CloudLlmService>(),
+      sl<AppPreferences>(),
+    ),
+  );
   sl.registerLazySingleton<ExportService>(() => ExportService());
 }

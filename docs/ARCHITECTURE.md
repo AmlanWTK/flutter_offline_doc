@@ -30,13 +30,19 @@ On desktop, camera and ML Kit OCR are unavailable; the UI falls back to file imp
 
 Use **English + Bangla** for mixed documents.
 
-### Retrieval
+### Retrieval & answers
 
-`RetrievalService` implements MVP RAG without an LLM:
+`RetrievalService` chunks documents and scores chunks by keyword overlap.
 
-1. Split document text into ~500 character chunks
-2. Score chunks by keyword overlap with the user question
-3. Return the top excerpts as the answer
+`AnswerService` routes the top chunks to one of three backends (`AnswerMode` in `AppPreferences`):
+
+| Mode | Backend | Notes |
+|------|---------|--------|
+| `excerpts` | `RetrievalService.generateAnswer` | Default; fully offline |
+| `localLlm` | `LocalLlmService` + `llamadart` | User picks a GGUF file; Android minSdk 29 |
+| `cloudApi` | `CloudLlmService` | OpenAI-compatible `/chat/completions` |
+
+`RagPromptBuilder` formats document excerpts + question for LLM backends.
 
 ### Export
 
@@ -46,9 +52,8 @@ Use **English + Bangla** for mixed documents.
 
 `GoRouter` redirects first-time users to onboarding until `AppPreferences.hasCompletedOnboarding` is true.
 
-## Future extensions (Phase 5)
+## Future extensions
 
-- Local embeddings + vector search
-- On-device LLM bridge (e.g. llama.cpp)
+- Local embeddings + vector search (semantic retrieval)
 - Multi-document chat sessions
-- Encrypted optional cloud provider
+- Chat history persistence in Hive

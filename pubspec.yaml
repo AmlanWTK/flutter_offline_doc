@@ -50,6 +50,8 @@ dependencies:
   tesseract_ocr: ^0.5.0
   pdfrx: ^2.2.24
   image: ^4.5.4
+  llamadart: ^0.1.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
