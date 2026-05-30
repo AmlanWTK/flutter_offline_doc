@@ -42,9 +42,6 @@ class OcrServiceImpl implements OcrService {
         config: OCRConfig(
           language: language,
           engine: OCREngine.tesseract,
-          options: const {
-            TesseractConfig.preserveInterwordSpaces: '1',
-          },
         ),
       );
       return text.trim();

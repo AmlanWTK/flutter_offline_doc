@@ -32,13 +32,14 @@ class RetrievalServiceImpl implements RetrievalService {
 
   @override
   List<Chunk> searchRelevantChunks(String query, List<Chunk> chunks, {int topK = 3}) {
-    final queryWords = query.toLowerCase().split(RegExp(r'\W+')).where((w) => w.isNotEmpty).toSet();
+    final splitRegex = RegExp(r'[\s\p{P}]+', unicode: true);
+    final queryWords = query.toLowerCase().split(splitRegex).where((w) => w.isNotEmpty).toSet();
     if (queryWords.isEmpty) return [];
 
     final Map<Chunk, int> scores = {};
 
     for (final chunk in chunks) {
-      final chunkWords = chunk.text.toLowerCase().split(RegExp(r'\W+'));
+      final chunkWords = chunk.text.toLowerCase().split(splitRegex);
       int score = 0;
       for (final word in queryWords) {
         if (chunkWords.contains(word)) {

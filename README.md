@@ -80,24 +80,17 @@ Most “AI document” apps are thin wrappers around a cloud API. This repo is d
 
 ## Screenshots
 
-Add PNGs under `docs/screenshots/` and link them here (stars love visuals):
+| App Homepage | Capture Document | Cropping Image |
+|---|---|---|
+| <img src="assets/images/apphomepage.jpeg" width="220" /> | <img src="assets/images/capturedocument.jpeg" width="220" /> | <img src="assets/images/croppingimageforocr.jpeg" width="220" /> |
 
-| Screen | File |
-|--------|------|
-| Onboarding | `docs/screenshots/01-onboarding.png` |
-| Library | `docs/screenshots/02-library.png` |
-| Capture + OCR language | `docs/screenshots/03-capture.png` |
-| Document detail | `docs/screenshots/04-detail.png` |
-| Chat | `docs/screenshots/05-chat.png` |
+| OCR Results | Summary Chat | Chat |
+|---|---|---|
+| <img src="assets/images/resultsafterocr.jpeg" width="220" /> | <img src="assets/images/summerychat.jpeg" width="220" /> | <img src="assets/images/chat2.jpeg" width="220" /> |
 
-```markdown
-<!-- Example once images exist -->
-<p align="center">
-  <img src="docs/screenshots/02-library.png" width="220" />
-  <img src="docs/screenshots/03-capture.png" width="220" />
-  <img src="docs/screenshots/05-chat.png" width="220" />
-</p>
-```
+| Cloud API Settings | Local LLM Settings |
+|---|---|
+| <img src="assets/images/settingapi.jpeg" width="220" /> | <img src="assets/images/settinglocalllm.jpeg" width="220" /> |
 
 ---
 
