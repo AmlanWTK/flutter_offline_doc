@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_offline_ai_doc_chat/shared/models/message.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/models/document.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/models/document_category.dart';
@@ -7,10 +8,12 @@ import 'package:flutter_offline_ai_doc_chat/shared/models/storage_stats.dart';
 
 class LocalDatabase {
   static const String _documentsBoxName = 'documents';
+  static const String _chatBoxName = 'chat_messages';
 
   static Future<void> initialize() async {
     await Hive.initFlutter();
     await Hive.openBox<Map>(_documentsBoxName);
+    await Hive.openBox<Map>(_chatBoxName);
   }
 
   static Box<Map> get _box => Hive.box<Map>(_documentsBoxName);
@@ -113,5 +116,24 @@ class LocalDatabase {
       imagePath: m['imagePath'] as String?,
       category: category,
     );
+  }
+
+  // ─── Chat Messages ──────────────────────────────────────
+  static Box<Map> get _chatBox => Hive.box<Map>(_chatBoxName);
+
+  Future<void> saveMessages(String documentId, List<Message> messages) async {
+    final serialized = messages.map((m) => m.toMap()).toList();
+    await _chatBox.put(documentId, {'messages': serialized});
+  }
+
+  List<Message> getChatHistory(String documentId) {
+    final data = _chatBox.get(documentId);
+    if (data == null || data['messages'] == null) return [];
+    final list = data['messages'] as List<dynamic>;
+    return list.map((m) => Message.fromMap(Map<String, dynamic>.from(m as Map))).toList();
+  }
+
+  Future<void> deleteChatHistory(String documentId) async {
+    await _chatBox.delete(documentId);
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_offline_ai_doc_chat/shared/models/message.dart';
 import 'package:flutter_offline_ai_doc_chat/core/storage/app_preferences.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/answer_service.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/export_service.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/voice_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -22,29 +23,67 @@ class _ChatScreenState extends State<ChatScreen> {
   final _answerService = sl<AnswerService>();
   final _prefs = sl<AppPreferences>();
   final _exportService = sl<ExportService>();
+  final _voiceService = sl<VoiceService>();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
 
   final List<Message> _messages = [];
   bool _isTyping = false;
+  bool _isListening = false;
+  String? _playingMessageId;
 
   @override
   void initState() {
     super.initState();
-    _messages.add(Message(
-      id: const Uuid().v4(),
-      documentId: widget.documentId,
-      content: 'Hi! Ask me anything about this document and I\'ll find the most relevant answers for you.',
-      role: MessageRole.ai,
-      timestamp: DateTime.now(),
-    ));
+    _voiceService.initialize();
+    final history = _db.getChatHistory(widget.documentId);
+    if (history.isNotEmpty) {
+      _messages.addAll(history);
+    } else {
+      _messages.add(Message(
+        id: const Uuid().v4(),
+        documentId: widget.documentId,
+        content: 'Hi! Ask me anything about this document and I\'ll find the most relevant answers for you.',
+        role: MessageRole.ai,
+        timestamp: DateTime.now(),
+      ));
+    }
   }
 
   @override
   void dispose() {
+    _voiceService.stopListening();
+    _voiceService.stopSpeaking();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _toggleListening() async {
+    if (_isListening) {
+      await _voiceService.stopListening();
+      setState(() => _isListening = false);
+    } else {
+      final success = await _voiceService.startListening(
+        onResult: (text) {
+          setState(() {
+            _textController.text = text;
+          });
+        },
+      );
+      if (success) setState(() => _isListening = true);
+    }
+  }
+
+  void _togglePlayMessage(String id, String content) async {
+    if (_playingMessageId == id) {
+      await _voiceService.stopSpeaking();
+      setState(() => _playingMessageId = null);
+    } else {
+      await _voiceService.stopSpeaking();
+      setState(() => _playingMessageId = id);
+      await _voiceService.speak(content);
+    }
   }
 
   void _sendMessage() async {
@@ -117,6 +156,14 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _saveChat() async {
+    await _db.saveMessages(widget.documentId, _messages);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Chat saved to local storage.')),
+    );
+  }
+
   void _showExportSheet() {
     final doc = _db.getDocument(widget.documentId);
     if (doc == null) return;
@@ -163,6 +210,17 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: () {
                 Navigator.pop(ctx);
                 _exportChat();
+              },
+            ),
+            const SizedBox(height: 8),
+            _ExportOption(
+              icon: Icons.save_outlined,
+              color: const Color(0xFF2E7D32),
+              title: 'Save Chat',
+              subtitle: 'Save conversation to local storage',
+              onTap: () {
+                Navigator.pop(ctx);
+                _saveChat();
               },
             ),
             const SizedBox(height: 8),
@@ -215,12 +273,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 return _ChatBubble(
                   message: msg,
                   isUser: isUser,
+                  isPlaying: _playingMessageId == msg.id,
                   onCopy: () {
                     Clipboard.setData(ClipboardData(text: msg.content));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Copied to clipboard')),
                     );
                   },
+                  onPlay: () => _togglePlayMessage(msg.id, msg.content),
                 );
               },
             ),
@@ -248,6 +308,34 @@ class _ChatScreenState extends State<ChatScreen> {
                       _TypingDot(delay: 300),
                     ],
                   ),
+                ),
+              ),
+            ),
+
+          // Suggested prompts
+          if (_messages.length <= 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ActionChip(
+                      label: const Text('What is the summary of it?'),
+                      onPressed: () {
+                        _textController.text = 'What is the summary of it?';
+                        _sendMessage();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ActionChip(
+                      label: const Text('What are the key points?'),
+                      onPressed: () {
+                        _textController.text = 'What are the key points?';
+                        _sendMessage();
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -286,6 +374,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      onPressed: _toggleListening,
+                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: _isListening ? Colors.red : cs.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
                       color: cs.primary,
                       shape: BoxShape.circle,
                     ),
@@ -308,11 +407,16 @@ class _ChatScreenState extends State<ChatScreen> {
 class _ChatBubble extends StatelessWidget {
   final Message message;
   final bool isUser;
+  final bool isPlaying;
   final VoidCallback onCopy;
+  final VoidCallback onPlay;
+  
   const _ChatBubble({
     required this.message,
     required this.isUser,
+    required this.isPlaying,
     required this.onCopy,
+    required this.onPlay,
   });
 
   @override
@@ -338,12 +442,37 @@ class _ChatBubble extends StatelessWidget {
                 bottomRight: Radius.circular(isUser ? 4 : 18),
               ),
             ),
-            child: Text(
-              message.content,
-              style: TextStyle(
-                  color: isUser ? cs.onPrimary : cs.onSurface,
-                  fontSize: 14,
-                  height: 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.content,
+                  style: TextStyle(
+                      color: isUser ? cs.onPrimary : cs.onSurface,
+                      fontSize: 14,
+                      height: 1.5),
+                ),
+                if (!isUser) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: onPlay,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(
+                            isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_outline,
+                            size: 20,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
           ),

@@ -9,6 +9,7 @@ import 'package:flutter_offline_ai_doc_chat/shared/services/pdf_extraction_servi
 import 'package:flutter_offline_ai_doc_chat/shared/services/local_llm_service.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/cloud_llm_service.dart';
 import 'package:flutter_offline_ai_doc_chat/shared/services/answer_service.dart';
+import 'package:flutter_offline_ai_doc_chat/shared/services/voice_service.dart';
 
 final sl = GetIt.instance;
 
@@ -39,4 +40,5 @@ Future<void> setupServiceLocator() async {
     ),
   );
   sl.registerLazySingleton<ExportService>(() => ExportService());
+  sl.registerLazySingleton<VoiceService>(() => VoiceService());
 }
